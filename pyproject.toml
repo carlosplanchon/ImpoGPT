@@ -6,7 +6,7 @@ authors = ["DeviousLab <deviouslab@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11.2"
 fastapi = "^0.80.0"
 uvicorn = "^0.18.3"
 
