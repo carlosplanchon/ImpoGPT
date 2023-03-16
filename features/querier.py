@@ -15,6 +15,7 @@ from langchain.docstore.document import Document
 from langchain.embeddings import OpenAIEmbeddings
 from openai.error import RateLimitError
 from retry import retry
+from features.mongo import MongoQuerier
 from features.chain import Chain
 import os
 
@@ -54,6 +55,8 @@ class Querier(Chain):
 
         self.prompts_sent = []
 
+        self.mongo_querier = MongoQuerier()
+
     def instance_external_resources(self):
         self.llm = ChatOpenAI(
             temperature=0,
@@ -79,12 +82,10 @@ class Querier(Chain):
         prefix: str = "",
         quiet: bool = False,
         pltags: list[str] | None = None,
+        tag: str | None = "no_tag",
         **kwargs,
     ) -> list[str] | str:
-        """
-        if pltags is not None:
-            self.llm.pl_tags = pltags
-        """
+
         query_save_object = {"prompt": prompt.format_prompt(**kwargs).dict()["text"]}
         chain = LLMChain(llm=self.llm, prompt=prompt)
         results = initial + chain.run(**kwargs)
@@ -96,6 +97,8 @@ class Querier(Chain):
             )
 
         query_save_object["response"] = results
+        query_save_object["tag"] = tag
+
         self.prompts_sent.append(query_save_object)
         return results
 
@@ -167,20 +170,20 @@ class Querier(Chain):
             prompt=summarize_template,
             query=query,
             sections=bulleted_similar_sections,
-            pltags=["summarize similar_sections (fast)"]
+            tag="summarize_similar_sections_fast"
         )
 
     def chatgpt_chain_query(self, docs, query):
         docs_amount = len(docs)
         question_prompt, refine_prompt = \
             templates.summarize_big_similar_sections_templates()
-        # self.llm.pl_tags = ["summarize similar sections (slow)"]
 
         first_document = docs[0]
         current_response = self.query_llm(
             prompt=question_prompt,
             text=first_document,
-            query=query
+            query=query,
+            tag="summarize_similar_sections_slow"
         )
         if docs_amount == 1:
             return current_response
@@ -190,7 +193,8 @@ class Querier(Chain):
                 prompt=refine_prompt,
                 existing_answer=current_response,
                 text=docs[i],
-                query=query
+                query=query,
+                tag="summarize_similar_sections_slow"
             )
 
         return current_response
@@ -235,7 +239,7 @@ class Querier(Chain):
             query=query,
             step=step,
             n=n,
-            pltags=["subquestions queries"]
+            tag="subquestions_queries"
         )
 
         answers: list[templates.Answer] = self._pmap(
@@ -252,7 +256,7 @@ class Querier(Chain):
             prompt=ANSWERS_TEMPLATE,
             query=query,
             step=step,
-            pltags=["answer subquestion"]
+            tag="answer_subquestion"
         )
         return {"step": step, "conclusion": conclusion}
 
@@ -273,7 +277,7 @@ class Querier(Chain):
             prefix=r"\d+(?:\.)",
             query=query,
             n=n,
-            pltags=["get subquestions"]
+            tag="get_subquestions"
         )
 
         print("--- STEPS ---")
@@ -322,9 +326,10 @@ class Querier(Chain):
         final_answer = self.query_llm(
             prompt=CONCLUSIONS_TEMPLATE,
             query=query,
-            pltags=["final answer"]
+            tag="final_answer"
         )
 
+        self.mongo_querier.insert_documents(self.prompts_sent)
         return {
             "final_answer": final_answer,
             "thought_process": self.THOUGHT_PROCESS
