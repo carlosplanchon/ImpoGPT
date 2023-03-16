@@ -52,6 +52,8 @@ class Querier(Chain):
 
         self.THOUGHT_PROCESS = {}
 
+        self.prompts_sent = []
+
     def instance_external_resources(self):
         self.llm = ChatOpenAI(
             temperature=0,
@@ -83,24 +85,26 @@ class Querier(Chain):
         if pltags is not None:
             self.llm.pl_tags = pltags
         """
-
+        query_save_object = {"prompt": prompt.format_prompt(**kwargs).dict()["text"]}
         chain = LLMChain(llm=self.llm, prompt=prompt)
         results = initial + chain.run(**kwargs)
 
         if initial and prefix:
-            return self._parse(
+            results = self._parse(
                 results=results.splitlines(),
                 prefix=prefix
             )
-        else:
-            return results
+
+        query_save_object["response"] = results
+        self.prompts_sent.append(query_save_object)
+        return results
 
     def query_similar_sections(
-        self,
-        query: str,
-        n: int,
-        filter_by_law: list[str] | None,
-            ):
+            self,
+            query: str,
+            n: int,
+            filter_by_law: list[str] | None,
+    ):
         """ Make an embedding and query against Pinecone. """
         print("> Query similar sections.:")
         print(query)
@@ -118,18 +122,17 @@ class Querier(Chain):
 
         sections_matched = [row["matched_section"] for row in result]
         uniq_sections_matched: list[str] = list(set(sections_matched))
-        print("#" * 50)
-        print("> UNIQ SECTIONS MATCHED:")
-        print(uniq_sections_matched)
-        print("#" * 50)
+        # print("#" * 50)
+        # print("> UNIQ SECTIONS MATCHED:")
+        # print(uniq_sections_matched)
 
         return uniq_sections_matched
 
     def summarize_similar_sections(
-        self,
-        similar_sections: list[str],
-        query: str
-            ):
+            self,
+            similar_sections: list[str],
+            query: str
+    ):
         # Experimental value.
         threshold: int = 12000
         if (len("".join(similar_sections)) + len(query)) > threshold:
@@ -138,8 +141,8 @@ class Querier(Chain):
                     page_content=section
                 ) for section in similar_sections
             ]
-            return self.summarize_big_similar_sections(
-                docs=docs,
+            return self.chatgpt_chain_query(
+                docs=similar_sections,
                 query=query
             )
         else:
@@ -149,15 +152,15 @@ class Querier(Chain):
             )
 
     def summarize_small_similar_sections(
-        self,
-        similar_sections,
-        query
-            ) -> str:
+            self,
+            similar_sections,
+            query
+    ) -> str:
         bulleted_similar_sections: str = "".join(
             [f"-{section}\n" for section in similar_sections]
         )
 
-        summarize_template: PromptTemplate =\
+        summarize_template: PromptTemplate = \
             templates.summarize_similar_sections_template()
 
         return self.query_llm(
@@ -167,35 +170,37 @@ class Querier(Chain):
             pltags=["summarize similar_sections (fast)"]
         )
 
-    def summarize_big_similar_sections(
-        self,
-        docs,
-        query
-            ) -> str:
-        return ""
-
-    """
-    DISABLED AND MARKED FOR REFACTOR.
-    def summarize_big_similar_sections(self, docs, query):
-        question_prompt, refine_prompt =\
+    def chatgpt_chain_query(self, docs, query):
+        docs_amount = len(docs)
+        question_prompt, refine_prompt = \
             templates.summarize_big_similar_sections_templates()
-        self.llm.pl_tags = ["summarize similar sections (slow)"]
-        chain = load_summarize_chain(
-            self.llm,
-            chain_type="refine",
-            question_prompt=question_prompt,
-            refine_prompt=refine_prompt,
-        )
+        # self.llm.pl_tags = ["summarize similar sections (slow)"]
 
-        return chain.run(input_documents=docs, query=query)
-    """
+        first_document = docs[0]
+        current_response = self.query_llm(
+            prompt=question_prompt,
+            text=first_document,
+            query=query
+        )
+        if docs_amount == 1:
+            return current_response
+
+        for i in range(1, docs_amount):
+            current_response = self.query_llm(
+                prompt=refine_prompt,
+                existing_answer=current_response,
+                text=docs[i],
+                query=query
+            )
+
+        return current_response
 
     def answer_question(
-        self,
-        question: str,
-        n: int,
-        filter_by_law,
-            ) -> templates.Answer:
+            self,
+            question: str,
+            n: int,
+            filter_by_law,
+    ) -> templates.Answer:
         print(f"Ask: {question}")
         print("> Answer question.")
         print(f"FILTER BY LAW: {filter_by_law}")
@@ -215,11 +220,11 @@ class Querier(Chain):
         return {"question": question, "answer": answer}
 
     def conclude_step(
-        self,
-        step: str,
-        query: str,
-        n: int,
-        filter_by_law: list[str] | None
+            self,
+            step: str,
+            query: str,
+            n: int,
+            filter_by_law: list[str] | None
     ) -> templates.Conclusion:
         print(f"Action: {step}")
         QUERIES_TEMPLATE: PromptTemplate = templates.queries_template()
@@ -240,7 +245,7 @@ class Querier(Chain):
             filter_by_law,
         )
 
-        ANSWERS_TEMPLATE: FewShotPromptTemplate =\
+        ANSWERS_TEMPLATE: FewShotPromptTemplate = \
             templates.answers_template(answers=answers)
 
         conclusion = self.query_llm(
@@ -252,11 +257,11 @@ class Querier(Chain):
         return {"step": step, "conclusion": conclusion}
 
     def subquestions_conclusion(
-        self,
-        query: str,
-        n: int = 3,
-        filter_by_law: list[str] | None = None
-            ):
+            self,
+            query: str,
+            n: int = 3,
+            filter_by_law: list[str] | None = None
+    ):
         print(f"Research")
 
         STEPS_TEMPLATE: PromptTemplate = templates.steps_template()
@@ -296,11 +301,11 @@ class Querier(Chain):
         return subquestions_conclusions
 
     def main_query(
-        self,
-        query: str,
-        n: int = 3,
-        filter_by_law: list[str] | None = None,
-            ):
+            self,
+            query: str,
+            n: int = 3,
+            filter_by_law: list[str] | None = None,
+    ):
         print(f"FILTER BY LAW: {filter_by_law}")
 
         CONCLUSIONS = self.subquestions_conclusion(
@@ -309,7 +314,7 @@ class Querier(Chain):
             filter_by_law=filter_by_law
         )
 
-        CONCLUSIONS_TEMPLATE: FewShotPromptTemplate =\
+        CONCLUSIONS_TEMPLATE: FewShotPromptTemplate = \
             templates.conclusions_template(
                 conclusions=CONCLUSIONS
             )

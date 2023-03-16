@@ -88,7 +88,7 @@ def similarity_query(
     law_filter: Optional[str] = None,
     section_filter: Optional[str] = None,
     top_k: Optional[int] = 1
-        ) -> QueryResponse:
+        ) -> List[QueryResponse]:
     ada_embeddings_engine = OpenAIEmbeddings(
         openai_api_key=api_key
     )
@@ -116,8 +116,8 @@ def similarity_query(
         law_id: str = converted_m["metadata"]["law_id"]
         section_id: str = converted_m["metadata"]["section_id"]
         law_result = impo_laws[law_id].copy()
-
         law_title: str = law_result["law_title"]
+        print(f"Law ID: {law_id}")
         print(f"Section ID: {section_id}")
 
         if section_id == "Summary":
@@ -125,8 +125,8 @@ def similarity_query(
         law_result: dict[str, str] = convert_law_result(
             law_result=law_result)
 
-        print("--- LAW RESULT ---")
-        print(law_result)
+        # print("--- LAW FOUND ---")
+        # print(law_result)
         matched_section: str = law_result[section_id]
 
         converted_m["law_title"] = law_title
