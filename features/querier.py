@@ -112,6 +112,10 @@ class Querier(Chain):
             top_k=n
         )
 
+        metadata = [row["metadata"] for row in result]
+
+        self.THOUGHT_PROCESS["sources"] = metadata
+
         sections_matched = [row["matched_section"] for row in result]
         uniq_sections_matched: list[str] = list(set(sections_matched))
         print("#" * 50)
