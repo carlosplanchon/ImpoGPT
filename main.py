@@ -3,6 +3,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from pathlib import Path
+
 from pydantic import BaseModel
 
 from features import chatgpt
@@ -39,6 +44,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount(
+    "/static",
+    StaticFiles(directory=Path(__file__).parent.absolute() / "static"),
+    name="static",
+)
+
+
+@app.get("/")
+def demo_get():
+    return FileResponse("static/index.html")
+
 
 @app.get("/python_version")
 def python_version():

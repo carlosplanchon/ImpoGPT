@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>ImpoGPT Playground</title>
+  <link href="static/styles.css" rel="stylesheet">
+
+</head>
+<body>
+  <h1>API Playground</h1>
+  <form>
+    <label for="apikey">OpenAI API Key:</label>
+    <input type="password" id="apikey" name="apikey" class="response" required>
+    <br>
+    <label for="prompt">Prompt:</label>
+    <input type="text" id="prompt" name="prompt" class="response" required>
+    <br>
+    <button type="button" id="send">Send</button>
+  </form>
+  <br><br>
+  <h3 style="text-align: center;">Final answer:</h3>
+  <div id="response" class="response"></div>
+  <h3 style="text-align: center;">Sources:</h3>
+  <div id="sources" class="response"></div>
+  <script src="static/script.js"></script>
+</body>
+</html>
