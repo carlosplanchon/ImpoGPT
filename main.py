@@ -59,8 +59,8 @@ class Prompt(BaseModel):
 
 
 @app.post("/send_prompt")
-async def send_prompt(prompt: Prompt):
-    result = await chatgpt.get_chatgpt_response(
+def send_prompt(prompt: Prompt):
+    result = chatgpt.get_chatgpt_response(
         api_key=prompt.api_key,
         prompt=prompt.prompt
     )
