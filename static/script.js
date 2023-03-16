@@ -6,6 +6,7 @@ const sourcesArea = document.getElementById("sources");
 
 
 sendPromptButton.addEventListener("click", async () => {
+    responseArea.innerHTML = "Procesando..."
     const apiKey = apiKeyInput.value;
     const prompt = promptInput.value;
     const response = await fetch("/send_question", {
