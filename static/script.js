@@ -6,7 +6,8 @@ const sourcesArea = document.getElementById("sources");
 
 
 sendPromptButton.addEventListener("click", async () => {
-    responseArea.innerHTML = "Procesando... puede tardar en el entorno de un minuto."
+    responseArea.innerHTML = "Procesando... puede tardar en el entorno de un minuto.";
+    sourcesArea.innerHTML = "";
     const apiKey = apiKeyInput.value;
     const prompt = promptInput.value;
     const response = await fetch("/send_question", {
