@@ -60,7 +60,8 @@ class Querier(Chain):
     def instance_external_resources(self):
         self.llm = ChatOpenAI(
             temperature=0,
-            openai_api_key=self.openai_api_key
+            openai_api_key=self.openai_api_key,
+            max_tokens=3072
         )
 
         self.openai_embeddings = OpenAIEmbeddings(
