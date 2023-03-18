@@ -26,12 +26,12 @@ sendPromptButton.addEventListener("click", async () => {
               law_filter: null
           })
       });
+
+      const data = await response.json();
+      console.log("--- RESPONSE ---");
+      console.log(data);
+  
+      responseArea.innerHTML = data.final_answer;
+      sourcesArea.innerHTML = JSON.stringify(data.thought_process.sources);
     }
-
-    const data = await response.json();
-    console.log("--- RESPONSE ---");
-    console.log(data);
-
-    responseArea.innerHTML = data.final_answer;
-    sourcesArea.innerHTML = JSON.stringify(data.thought_process.sources);
 })
