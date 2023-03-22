@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +13,7 @@ from pydantic import BaseModel
 
 from features import chatgpt
 from features.querier import Querier
-from features import similarity_queries
+from features import similarity_queries, mongo
 
 import pinecone
 from langchain.cache import InMemoryCache
@@ -83,6 +84,22 @@ def send_prompt(prompt: Prompt):
     )
     return {"result": result}
 
+
+@app.get("/prompts_record")
+def prompts_record(openai_api_key: str, include_process: bool = False):
+    mongo_client = mongo.MongoQuerier()
+    hashed_api_key = hashlib.sha256(openai_api_key.encode()).hexdigest()
+    mongo_result = mongo_client.get_by_hash(hashed_api_key, include_process)
+    results = [
+        {
+            'prompt': r['prompt'],
+            'answer': r['response'],
+            'tag': r['tag'],
+            'question:': r.get('question')
+        }
+        for r in mongo_result
+    ]
+    return results
 
 
 class SimilarityRequest(BaseModel):

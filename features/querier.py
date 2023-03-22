@@ -2,6 +2,8 @@
 
 from typing import TypedDict
 import re
+
+import hashlib
 import pandas as pd
 import pinecone
 from langchain import (
@@ -99,7 +101,7 @@ class Querier(Chain):
 
         query_save_object["response"] = results
         query_save_object["tag"] = tag
-
+        query_save_object["question"] = kwargs.get("query")
         self.prompts_sent.append(query_save_object)
         return results
 
@@ -329,8 +331,8 @@ class Querier(Chain):
             query=query,
             tag="final_answer"
         )
-
-        self.mongo_querier.insert_documents(self.prompts_sent)
+        hashed_api_key = hashlib.sha256(self.openai_api_key.encode()).hexdigest()
+        self.mongo_querier.insert_documents(self.prompts_sent, hashed_api_key)
         return {
             "final_answer": final_answer,
             "thought_process": self.THOUGHT_PROCESS
