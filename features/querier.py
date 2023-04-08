@@ -28,6 +28,17 @@ from langchain.chat_models import ChatOpenAI
 
 from features import templates
 
+import tiktoken
+
+PROMPT_MAX_TOKENS: int = 4080
+
+token_encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
+# For GPT-4 use: "gpt-4"
+
+
+def get_string_tokens(text: str) -> int:
+    return len(token_encoder.encode(text))
+
 
 class Querier(Chain):
     """
@@ -63,7 +74,6 @@ class Querier(Chain):
         self.llm = ChatOpenAI(
             temperature=0,
             openai_api_key=self.openai_api_key,
-            max_tokens=3072
         )
 
         self.openai_embeddings = OpenAIEmbeddings(
@@ -90,6 +100,13 @@ class Querier(Chain):
     ) -> list[str] | str:
 
         query_save_object = {"prompt": prompt.format_prompt(**kwargs).dict()["text"]}
+
+
+        input_tokens_amt: int = get_string_tokens(
+            text=query_save_object["prompt"])
+
+        self.llm.max_tokens = PROMPT_MAX_TOKENS - input_tokens_amt
+
         chain = LLMChain(llm=self.llm, prompt=prompt)
         results = initial + chain.run(**kwargs)
 
